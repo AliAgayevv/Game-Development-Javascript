@@ -6,6 +6,8 @@ window.addEventListener("load", function () {
 
   ctx.strokeStyle = "white";
   ctx.lineWidth = 3;
+  ctx.font = "20px Helvetica";
+  ctx.fillStyle = "white";
 
   class Asteroid {
     // Game klassini qebul edir
@@ -20,30 +22,44 @@ window.addEventListener("load", function () {
       this.spriteWidth = 150;
       this.spriteHeight = 155;
       // her frame de astreoidin nece piksel hereket edeceyini gosterir
-      this.speed = Math.random() * 1.5 + 0.1;
+      this.speed = Math.random() * 5 + 2;
       //   Asteroidin free olub olmadigini yoxlayir
       this.free = true;
+      // Her bir asteroidin rotate derecesi
+      this.angle = 0;
+      // velocity of angle
+      this.va = Math.random() * 0.02 - 0.01;
     }
 
     draw(context) {
       if (!this.free) {
         // imgSrc, x koordianti, y kooridnati, (width, height) optionaldi width ve height
+        context.save();
+        // context.rotate versek birdefiye canvas rotate olur amma context.translate(this.x, this.y) istifade edende, her bir indivudual asteroidin merkezi uzerinde rotate olur
+        context.translate(this.x, this.y);
+        context.rotate(this.angle);
         context.drawImage(
           this.image,
           //  Bu hisse asteroidi circle merkezine getirmek ucundu
-          this.x - this.spriteWidth / 2,
-          this.y - this.spriteHeight / 2,
+          -this.spriteWidth / 2,
+          -this.spriteHeight / 2,
           this.spriteWidth,
           this.spriteHeight
         );
+        context.restore();
       }
     }
     update() {
       if (!this.free) {
+        this.angle += this.va;
         this.x += this.speed;
         // Ekrandan cixanda asteroidi free olaraq isareleyir
-        if (this.x > this.game.width + this.radius) {
+        if (this.x > this.game.width - this.radius) {
           this.reset();
+          const explosion = this.game.getExplosion();
+          if (explosion) {
+            explosion.start(this.x, this.y, 0);
+          }
         }
       }
     }
@@ -58,6 +74,83 @@ window.addEventListener("load", function () {
     }
   }
 
+  class Explosion {
+    constructor(gameArg) {
+      this.game = gameArg;
+      this.x = 0;
+      this.y = 0;
+      this.speed = 0;
+      this.image = document.getElementById("explosions");
+      // Spritedaki her bir explosionun width ve heightini aliriq ki onlari sirayla gezek ve animasiya effekti yaradaq
+      this.spriteWidth = 300;
+      this.spriteHeight = 300;
+      this.free = true;
+      this.frameX = 0;
+      // 3 dene partlama effekti y ekseni ustunde duzulub, x eksenleri onlarin timeline-di yeni goturek 1 ci partlama effektinin 1 ci frame i partlamanin baslamasi 2 animasyiasi 3 de pik halidi, biz y ekseninden random olaraq 1 denesin gotururk ki unique olsun her partlama, hamsi ucun 1 dene partlama effekti istifade etsek bayagi gorunecek.
+      this.frameY = Math.floor(Math.random() * 3);
+      this.maxFrame = 22;
+
+      this.animationtimer = 0;
+      this.animationInterval = 1000 / 25;
+
+      this.sound =
+        this.game.allExplosionSounds[
+          Math.floor(Math.random() * this.game.allExplosionSounds.length)
+        ];
+    }
+    draw(context) {
+      if (!this.free) {
+        context.drawImage(
+          this.image,
+          this.spriteWidth * this.frameX,
+          this.spriteHeight * this.frameY,
+          this.spriteWidth,
+          this.spriteHeight,
+          this.x - this.spriteWidth / 2,
+          this.y - this.spriteHeight / 2,
+          this.spriteWidth,
+          this.spriteHeight
+        );
+      }
+    }
+    update(deltaTime) {
+      if (!this.free) {
+        this.x += this.speed;
+        if (this.animationtimer > this.animationInterval) {
+          this.frameX++;
+          if (this.frameX > this.maxFrame) {
+            this.reset();
+          }
+          this.animationtimer = 0;
+        } else {
+          this.animationtimer += deltaTime;
+        }
+      }
+    }
+
+    playSound() {
+      this.sound.volume = 0.5;
+      this.sound.currentTime = 0;
+      this.sound.play();
+    }
+
+    reset() {
+      this.free = true;
+    }
+    start(x, y, speed) {
+      this.free = false;
+      this.x = x;
+      this.y = y;
+      this.frameX = 0;
+      this.speed = speed;
+      this.sound =
+        this.game.allExplosionSounds[
+          Math.floor(Math.random() * this.game.allExplosionSounds.length)
+        ];
+      this.playSound();
+    }
+  }
+
   class Game {
     constructor(widthArg, heightArg) {
       this.width = widthArg;
@@ -65,23 +158,73 @@ window.addEventListener("load", function () {
       //   Object Pool ile isleyirik ki her defe yeni asteroid yaradanda yeni object yaratmasin ve memoryde yer tutmasin
       //   Bir nov C dilindeki malloc ve free funksiyalarina benzer bir mentqiden istifade edeceyik
       this.asteroidPool = [];
-      this.max = 30;
+      this.maxAsteroids = 30;
       this.asteroidTimer = 0;
       //   her 1 saniyede bir asteroid yaradir
       this.asteroidInterval = 1000;
       this.createAstroidPool();
+      this.score = 0;
+      this.maxScore = Infinity;
+
+      this.mouse = {
+        x: 0,
+        y: 0,
+        // mouse etrafinda radius yaradiriq click edilen bolgenin etrafinda merkezi click edilen yer olan
+        radius: 2,
+      };
+
+      this.explosionSound1 = document.getElementById("explosion1");
+      this.explosionSound2 = document.getElementById("explosion2");
+      this.explosionSound3 = document.getElementById("explosion3");
+      this.explosionSound4 = document.getElementById("explosion4");
+      this.explosionSound5 = document.getElementById("explosion5");
+      this.explosionSound6 = document.getElementById("explosion6");
+
+      this.allExplosionSounds = [
+        this.explosionSound1,
+        this.explosionSound2,
+        this.explosionSound3,
+        this.explosionSound4,
+        this.explosionSound5,
+        this.explosionSound6,
+      ];
+
+      this.explosionPool = [];
+      this.maxExplosions = 20;
+      this.createExplosionPool();
+
+      window.addEventListener("click", (e) => {
+        this.mouse.x = e.offsetX;
+        this.mouse.y = e.offsetY;
+
+        this.asteroidPool.forEach((asteroid) => {
+          if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
+            const explosion = this.getExplosion();
+            if (explosion) {
+              explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
+              asteroid.reset();
+              if (this.score < this.maxScore) this.score++;
+            }
+          }
+        });
+      });
     }
 
     createAstroidPool() {
-      for (let i = 0; i < this.max; i++) {
+      for (let i = 0; i < this.maxAsteroids; i++) {
         // 10 dene asteroid yaradir ve asteroidPool arrayine push edirik. argument olan this vasitsiyle parent class olan Game in referansinida otururk ki access ede bilek.
         this.asteroidPool.push(new Asteroid(this));
+      }
+    }
+    createExplosionPool() {
+      for (let i = 0; i < this.maxExplosions; i++) {
+        this.explosionPool.push(new Explosion(this));
       }
     }
 
     // AsteroidPool arrayinden free olan ilk asteroidi tapir ve onu return edir
     // Daha murekkeb object poollarda linkedlist kimi data strucutres istifade edilebiler
-    getElement() {
+    getAsteroid() {
       for (let i = 0; i < this.asteroidPool.length; i++) {
         if (this.asteroidPool[i].free) {
           return this.asteroidPool[i];
@@ -89,10 +232,31 @@ window.addEventListener("load", function () {
       }
     }
 
+    // 2 obyektin temas etmesini check etmek ucun checkCollision funksiyasi yaradiriq. Bunu etmek ucun bir cox algoritma var (meselen, AABB collision detection, Circle collision detection, Pixel perfect collision detection)
+    // Biz circle collision detection istifade edeceyik
+    // 2 circle arasinda mesafe formulu: sqrt(dx^2 + dy^2)
+    // hipotenuz formuludu qisasi
+    // 2 circle arasinda mesafe < sqrt(dx^2 + dy^2) ise collision var eks halda false
+    checkCollision(a, b) {
+      const sumOfRadii = a.radius + b.radius;
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const distance = Math.hypot(dx, dy);
+      return distance < sumOfRadii;
+    }
+
+    getExplosion() {
+      for (let i = 0; i < this.explosionPool.length; i++) {
+        if (this.explosionPool[i].free) {
+          return this.explosionPool[i];
+        }
+      }
+    }
+
     render(context, deltaTime) {
       if (this.asteroidTimer > this.asteroidInterval) {
-        const asteroid = this.getElement();
-        // Pool icinde free olan asteroid varsa onu start edir, if qoymasaydiq 4 cu asteroid yarananda partliyacagdi kod cunki getElement null qaytacagdi ve null.start() deye birshey yoxdur
+        const asteroid = this.getAsteroid();
+        // Pool icinde free olan asteroid varsa onu start edir, if qoymasaydiq 4 cu asteroid yarananda partliyacagdi kod cunki getAsteroid null qaytacagdi ve null.start() deye birshey yoxdur
         if (asteroid) {
           asteroid.start();
         }
@@ -105,6 +269,22 @@ window.addEventListener("load", function () {
         asteroid.draw(context);
         asteroid.update();
       });
+
+      this.explosionPool.forEach((explosion) => {
+        explosion.draw(context);
+        explosion.update(deltaTime);
+      });
+      context.fillText(`Score: ${this.score}`, 20, 35);
+      if (this.score >= this.maxScore) {
+        context.save();
+        context.textAlign = "center";
+        context.fillText(
+          `You Win! Final score ${this.maxScore}`,
+          this.width / 2,
+          this.height / 2
+        );
+        context.restore();
+      }
     }
   }
   const game = new Game(canvas.width, canvas.height);
