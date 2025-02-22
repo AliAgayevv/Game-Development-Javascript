@@ -18,9 +18,23 @@ window.addEventListener("load", function () {
       this.radius = 75;
       this.x = -this.radius;
       this.y = Math.random() * this.game.height;
-      this.image = document.getElementById("asteroid");
-      this.spriteWidth = 150;
-      this.spriteHeight = 155;
+
+      this.asteroid1 = document.getElementById("asteroid1");
+      this.asteroid2 = document.getElementById("asteroid2");
+      this.asteroid3 = document.getElementById("asteroid3");
+      this.asteroid4 = document.getElementById("asteroid4");
+
+      this.allAsteroids = [
+        this.asteroid1,
+        this.asteroid2,
+        this.asteroid3,
+        this.asteroid4,
+      ];
+      this.image =
+        this.allAsteroids[Math.floor(Math.random() * this.allAsteroids.length)];
+
+      this.spriteWidth = 300;
+      this.spriteHeight = 200;
       // her frame de astreoidin nece piksel hereket edeceyini gosterir
       this.speed = Math.random() * 5 + 2;
       //   Asteroidin free olub olmadigini yoxlayir
@@ -54,7 +68,8 @@ window.addEventListener("load", function () {
         this.angle += this.va;
         this.x += this.speed;
         // Ekrandan cixanda asteroidi free olaraq isareleyir
-        if (this.x > this.game.width - this.radius) {
+        if (this.x > this.game.width - this.radius && this.game.hearths > 0) {
+          this.game.hearths--;
           this.reset();
           const explosion = this.game.getExplosion();
           if (explosion) {
@@ -165,7 +180,8 @@ window.addEventListener("load", function () {
       this.asteroidInterval = 1000;
       this.createAstroidPool();
       this.score = 0;
-      this.maxScore = Infinity;
+      this.maxScore = localStorage.getItem("maxScore") || 0;
+      this.hearths = 3;
 
       this.mouse = {
         x: 0,
@@ -204,7 +220,7 @@ window.addEventListener("load", function () {
             if (explosion) {
               explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
               asteroid.reset();
-              if (this.score < this.maxScore) this.score++;
+              this.score++;
             }
           }
         });
@@ -275,15 +291,26 @@ window.addEventListener("load", function () {
         explosion.draw(context);
         explosion.update(deltaTime);
       });
+
       context.fillText(`Score: ${this.score}`, 20, 35);
-      if (this.score >= this.maxScore) {
+      context.fillText(`Max Score: ${this.maxScore}`, 20, 70);
+      if (this.hearths === 0) {
         context.save();
         context.textAlign = "center";
-        context.fillText(
-          `You Win! Final score ${this.maxScore}`,
-          this.width / 2,
-          this.height / 2
-        );
+        if (this.score < this.maxScore) {
+          context.fillText(
+            `You Lose! Your score ${this.score}`,
+            this.width / 2,
+            this.height / 2
+          );
+        } else {
+          localStorage.setItem("maxScore", this.score);
+          context.fillText(
+            `You Lose! You have new high score ${this.score}`,
+            this.width / 2,
+            this.height / 2
+          );
+        }
         context.restore();
       }
     }
