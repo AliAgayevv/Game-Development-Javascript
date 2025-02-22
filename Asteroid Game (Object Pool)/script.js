@@ -194,21 +194,33 @@ window.addEventListener("load", function () {
       this.createExplosionPool();
 
       window.addEventListener("click", (e) => {
-        this.mouse.x = e.offsetX;
-        this.mouse.y = e.offsetY;
-
-        this.asteroidPool.forEach((asteroid) => {
-          if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
-            const explosion = this.getExplosion();
-            if (explosion) {
-              explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
-              asteroid.reset();
-              if (this.score < this.maxScore) this.score++;
-            }
-          }
-        });
+        this.eventHandler(e);
+      });
+      window.addEventListener("touchstart", (e) => {
+        this.eventHandler(e);
       });
     }
+
+    eventHandler = (e) => {
+      // Event türü mouse olayına göre offsetX/offsetY'yi doğru alabilmek için kontrol et
+      const isTouchEvent = e.type === "touchstart";
+      const x = isTouchEvent ? e.touches[0].clientX : e.offsetX;
+      const y = isTouchEvent ? e.touches[0].clientY : e.offsetY;
+
+      this.mouse.x = x;
+      this.mouse.y = y;
+
+      this.asteroidPool.forEach((asteroid) => {
+        if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
+          const explosion = this.getExplosion();
+          if (explosion) {
+            explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
+            asteroid.reset();
+            if (this.score < this.maxScore) this.score++;
+          }
+        }
+      });
+    };
 
     createAstroidPool() {
       for (let i = 0; i < this.maxAsteroids; i++) {
