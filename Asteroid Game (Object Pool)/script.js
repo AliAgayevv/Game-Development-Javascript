@@ -27,7 +27,7 @@ window.addEventListener("load", function () {
       this.free = true;
       // Her bir asteroidin rotate derecesi
       this.angle = 0;
-      // velocity of angle
+      // velocity of angle - donme sureti
       this.va = Math.random() * 0.02 - 0.01;
     }
 
@@ -73,7 +73,6 @@ window.addEventListener("load", function () {
       this.y = Math.random() * this.game.height;
     }
   }
-
   class Explosion {
     constructor(gameArg) {
       this.game = gameArg;
@@ -138,6 +137,8 @@ window.addEventListener("load", function () {
       this.free = true;
     }
     start(x, y, speed) {
+      // Her yeni partlama effekti yaradildiqda 3 dene partlama animasiyasindan birini random secirik
+      this.frameY = Math.floor(Math.random() * 3);
       this.free = false;
       this.x = x;
       this.y = y;
@@ -194,33 +195,21 @@ window.addEventListener("load", function () {
       this.createExplosionPool();
 
       window.addEventListener("click", (e) => {
-        this.eventHandler(e);
-      });
-      window.addEventListener("touchstart", (e) => {
-        this.eventHandler(e);
+        this.mouse.x = e.offsetX;
+        this.mouse.y = e.offsetY;
+
+        this.asteroidPool.forEach((asteroid) => {
+          if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
+            const explosion = this.getExplosion();
+            if (explosion) {
+              explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
+              asteroid.reset();
+              if (this.score < this.maxScore) this.score++;
+            }
+          }
+        });
       });
     }
-
-    eventHandler = (e) => {
-      // Event türü mouse olayına göre offsetX/offsetY'yi doğru alabilmek için kontrol et
-      const isTouchEvent = e.type === "touchstart";
-      const x = isTouchEvent ? e.touches[0].clientX : e.offsetX;
-      const y = isTouchEvent ? e.touches[0].clientY : e.offsetY;
-
-      this.mouse.x = x;
-      this.mouse.y = y;
-
-      this.asteroidPool.forEach((asteroid) => {
-        if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
-          const explosion = this.getExplosion();
-          if (explosion) {
-            explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
-            asteroid.reset();
-            if (this.score < this.maxScore) this.score++;
-          }
-        }
-      });
-    };
 
     createAstroidPool() {
       for (let i = 0; i < this.maxAsteroids; i++) {
