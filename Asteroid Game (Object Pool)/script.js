@@ -4,6 +4,19 @@ window.addEventListener("load", function () {
   canvas.width = 600;
   canvas.height = 800;
 
+  const restartButton = document.createElement("button");
+  restartButton.textContent = "Restart";
+  restartButton.style.position = "absolute";
+  restartButton.style.borderRadius = "8px";
+  restartButton.style.left = "50%";
+  restartButton.style.top = "55%";
+  restartButton.style.transform = "translate(-50%, -50%)";
+  restartButton.style.padding = "10px 20px";
+  restartButton.style.fontSize = "20px";
+  restartButton.style.cursor = "pointer";
+  restartButton.style.display = "none";
+  document.body.appendChild(restartButton);
+
   ctx.strokeStyle = "white";
   ctx.lineWidth = 3;
   ctx.font = "20px Helvetica";
@@ -184,6 +197,8 @@ window.addEventListener("load", function () {
       this.hearths = 3;
       this.hearthImage = document.getElementById("heart");
 
+      this.isGameOver = false;
+
       this.mouse = {
         x: 0,
         y: 0,
@@ -216,7 +231,11 @@ window.addEventListener("load", function () {
         this.mouse.y = e.offsetY;
 
         this.asteroidPool.forEach((asteroid) => {
-          if (!asteroid.free && this.checkCollision(asteroid, this.mouse)) {
+          if (
+            !asteroid.free &&
+            this.checkCollision(asteroid, this.mouse) &&
+            this.hearths > 0
+          ) {
             const explosion = this.getExplosion();
             if (explosion) {
               explosion.start(asteroid.x, asteroid.y, asteroid.speed * 0.4);
@@ -271,7 +290,22 @@ window.addEventListener("load", function () {
       }
     }
 
+    reset() {
+      this.maxScore = localStorage.getItem("maxScore");
+      this.score = 0;
+      this.hearths = 3;
+      this.isGameOver = false;
+      this.asteroidTimer = 0;
+      this.asteroidPool.forEach((asteroid) => {
+        asteroid.reset();
+      });
+      this.explosionPool.forEach((explosion) => {
+        explosion.reset();
+      });
+    }
+
     render(context, deltaTime) {
+      this.isGameOver = this.hearths == 0;
       if (this.asteroidTimer > this.asteroidInterval) {
         const asteroid = this.getAsteroid();
         // Pool icinde free olan asteroid varsa onu start edir, if qoymasaydiq 4 cu asteroid yarananda partliyacagdi kod cunki getAsteroid null qaytacagdi ve null.start() deye birshey yoxdur
@@ -302,7 +336,6 @@ window.addEventListener("load", function () {
       }
       context.restore();
 
-      // context.fillText(`Hearths: ${this.hearths}`, this.width / 1.2, 35);
       for (let i = 0; i < this.hearths; i++) {
         context.drawImage(
           this.hearthImage,
@@ -314,10 +347,10 @@ window.addEventListener("load", function () {
       }
 
       context.fillText(`Max Score: ${this.maxScore}`, 20, 70);
-      if (this.hearths === 0) {
+      if (this.isGameOver) {
         context.save();
         context.textAlign = "center";
-        if (this.score < this.maxScore) {
+        if (this.isGameOver && this.score <= this.maxScore) {
           context.fillText(
             `You Lose! Your score ${this.score}`,
             this.width / 2,
@@ -335,7 +368,7 @@ window.addEventListener("load", function () {
       }
     }
   }
-  const game = new Game(canvas.width, canvas.height);
+  let game = new Game(canvas.width, canvas.height);
 
   let lastTime = 0;
   // Render funskiyasi her defe cagirilanda bir frame yaradir ve asteroidleri cizir
@@ -346,7 +379,14 @@ window.addEventListener("load", function () {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     game.render(ctx, deltaTime);
     // ! Bunun ne oldugun ARASTIR
+
+    restartButton.style.display = game.isGameOver ? "block" : "none";
+
     requestAnimationFrame(animate);
   }
   animate(0);
+
+  restartButton.addEventListener("click", () => {
+    game.reset();
+  });
 });
