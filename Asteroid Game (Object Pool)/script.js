@@ -7,7 +7,7 @@ window.addEventListener("load", function () {
   ctx.strokeStyle = "white";
   ctx.lineWidth = 3;
   ctx.font = "20px Helvetica";
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "red";
 
   class Asteroid {
     // Game klassini qebul edir
@@ -182,6 +182,7 @@ window.addEventListener("load", function () {
       this.score = 0;
       this.maxScore = localStorage.getItem("maxScore") || 0;
       this.hearths = 3;
+      this.hearthImage = document.getElementById("heart");
 
       this.mouse = {
         x: 0,
@@ -292,7 +293,26 @@ window.addEventListener("load", function () {
         explosion.update(deltaTime);
       });
 
-      context.fillText(`Score: ${this.score}`, 20, 35);
+      context.save();
+      if (this.score > this.maxScore) {
+        ctx.fillStyle = "green";
+        context.fillText(`Score: ${this.score}`, 20, 35);
+      } else {
+        context.fillText(`Score: ${this.score}`, 20, 35);
+      }
+      context.restore();
+
+      // context.fillText(`Hearths: ${this.hearths}`, this.width / 1.2, 35);
+      for (let i = 0; i < this.hearths; i++) {
+        context.drawImage(
+          this.hearthImage,
+          this.width - 45 - 45 * i - 20,
+          35,
+          40,
+          40
+        );
+      }
+
       context.fillText(`Max Score: ${this.maxScore}`, 20, 70);
       if (this.hearths === 0) {
         context.save();
